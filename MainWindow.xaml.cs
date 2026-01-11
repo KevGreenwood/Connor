@@ -9,17 +9,15 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
+using System.Xml.Linq;
 using Wpf.Ui.Controls;
 
 
 namespace Connor
 {
-    /// <summary>
-    /// Lógica de interacción para MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : FluentWindow
     {
-        public ObservableCollection<Product> Products => ProductHandler.Products; // Enlazar con la lista observable
+        public ObservableCollection<Product> Products => ProductHandler.Products;
 
         public MainWindow()
         {
@@ -29,10 +27,10 @@ namespace Connor
 
             Wpf.Ui.Appearance.ApplicationThemeManager.Apply(
               Wpf.Ui.Appearance.ApplicationTheme.Dark, // Theme type
-              Wpf.Ui.Controls.WindowBackdropType.Auto,  // Background type
+              WindowBackdropType.Auto,  // Background type
               true                                      // Whether to change accents automatically
             );
-
+            ProductHandler.LoadProducts();
             InitializeComponent();
         }
 
@@ -40,7 +38,7 @@ namespace Connor
         {
             if (sender is ToggleSwitch toggleSwitch && toggleSwitch.DataContext is Product product)
             {
-                FirewallManager.AddFirewallBlockRule(product);
+                FirewallManager.AddRule(product);
             }
         }
 
@@ -48,28 +46,26 @@ namespace Connor
         {
             if (sender is ToggleSwitch toggleSwitch && toggleSwitch.DataContext is Product product)
             {
-                FirewallManager.RemoveFirewallRule(product);
+                FirewallManager.RemoveRule(product);
             }
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            // Configurar el diálogo de selección de archivo
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
-                FileName = "", // Nombre por defecto
-                DefaultExt = ".exe", // Extensión por defecto
-                Filter = "Executables (*.exe)|*.exe" // Filtro de archivos
+                FileName = "",
+                DefaultExt = ".exe",
+                Filter = "Executables (*.exe)|*.exe"
             };
 
             bool? result = dialog.ShowDialog();
 
-            if (result == true)
+            if ((bool)result)
             {
                 string filename = dialog.FileName;
                 FileVersionInfo info = FileVersionInfo.GetVersionInfo(filename);
                 string productName = info.ProductName ?? Path.GetFileNameWithoutExtension(filename);
-
 
                 if (ProductHandler.Products.Any(p => p.ExecutablePath == filename))
                 {
@@ -88,17 +84,13 @@ namespace Connor
                         Name = productName,
                         Version = info.ProductVersion ?? "1.0.0",
                         ExecutablePath = filename,
-                        IsFirewallBlocked = FirewallManager.FirewallRuleExists(),
                         Icon = ProductHandler.GetIcon(filename)
                     };
-
-                    // Agregarlo a la lista
                     ProductHandler.Products.Add(newProduct);
                 }
             }
         }
     }
-
 
     public class Product
     {
@@ -117,7 +109,7 @@ namespace Connor
             Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES%\Adobe"),
             Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES(x86)%\Adobe")
         };
-        private static readonly HashSet<string> ExecutableNames = new HashSet<string>()
+        private static readonly HashSet<string> ClayNames = new HashSet<string>()
         {
             "Photoshop.exe",
             "Illustrator.exe",
@@ -126,16 +118,15 @@ namespace Connor
             "InDesign.exe"
         };
 
-        private static IEnumerable<string> FindExecutables()
+        private static IEnumerable<string> FindClay()
         {
             foreach (var path in CommonPaths)
             {
                 if (!Directory.Exists(path)) continue;
-                IEnumerable<string> folders = Directory.EnumerateDirectories(path);
-                foreach (var folder in folders)
+                foreach (var folder in Directory.EnumerateDirectories(path))
                 {
                     IEnumerable<string> executables = Directory.EnumerateFiles(folder, "*.exe", SearchOption.AllDirectories)
-                                               .Where(file => ExecutableNames.Contains(Path.GetFileName(file)));
+                                               .Where(file => ClayNames.Contains(Path.GetFileName(file)));
                     foreach (var executable in executables)
                     {
                         yield return executable;
@@ -144,41 +135,83 @@ namespace Connor
             }
         }
 
+
+
         public static async Task LoadProducts()
         {
             Products.Clear();
-            IEnumerable<string> executables = FindExecutables();
-            foreach (string executable in executables)
-            {
-                FileVersionInfo info = FileVersionInfo.GetVersionInfo(executable);
-                string productName = info.ProductName ?? Path.GetFileNameWithoutExtension(executable);
 
-                Product product = new Product()
+            INetFwPolicy2 fwPolicy =
+                (INetFwPolicy2)Activator.CreateInstance(
+                    Type.GetTypeFromProgID("HNetCfg.FwPolicy2"));
+
+            foreach (INetFwRule rule in fwPolicy.Rules)
+            {
+                if (string.IsNullOrWhiteSpace(rule.Description) ||
+                    !rule.Description.Trim().EndsWith(
+                        "limiting its online functionalities.",
+                        StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(rule.ApplicationName))
+                    continue;
+
+                string exePath = rule.ApplicationName.Trim('"');
+
+                // Avoid duplicates
+                if (Products.Any(p =>
+                    p.ExecutablePath.Equals(exePath, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                FileVersionInfo info = FileVersionInfo.GetVersionInfo(exePath);
+
+                Products.Add(new Product
                 {
-                    Name = productName,
+                    Name = info.ProductName ??
+                           Path.GetFileNameWithoutExtension(exePath),
+                    Version = info.ProductVersion ?? "1.0.0",
+                    ExecutablePath = exePath,
+                    IsFirewallBlocked = true,
+                    Icon = await Task.Run(() => GetIcon(exePath)),
+
+                });
+            }
+
+            foreach (string executable in FindClay())
+            {
+                if (Products.Any(p =>
+                    p.ExecutablePath.Equals(executable, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                FileVersionInfo info = FileVersionInfo.GetVersionInfo(executable);
+
+
+                Products.Add(new Product
+                {
+                    Name = info.ProductName ??
+                           Path.GetFileNameWithoutExtension(executable),
                     Version = info.ProductVersion ?? "1.0.0",
                     ExecutablePath = executable,
-                    IsFirewallBlocked = FirewallManager.FirewallRuleExists(),
-                    Icon = await Task.Run(() => GetIcon(executable))
-                };
-                Products.Add(product);
+                    Icon = await Task.Run(() => GetIcon(executable)),
+                    IsFirewallBlocked = false
+                });
             }
         }
+
 
         public static BitmapImage GetIcon(string executablePath)
         {
             try
             {
-                var icon = Icon.ExtractAssociatedIcon(executablePath);
+                Icon icon = Icon.ExtractAssociatedIcon(executablePath);
                 if (icon == null)
                     return null;
 
-                var bitmap = icon.ToBitmap();
-                var memoryStream = new MemoryStream();
-                bitmap.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
+                MemoryStream memoryStream = new MemoryStream();
+                icon.ToBitmap().Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
                 memoryStream.Seek(0, SeekOrigin.Begin);
 
-                var bitmapImage = new BitmapImage();
+                BitmapImage bitmapImage = new BitmapImage();
                 bitmapImage.BeginInit();
                 bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
                 bitmapImage.StreamSource = memoryStream;
@@ -196,35 +229,16 @@ namespace Connor
 
     public static class FirewallManager
     {
-        public static bool FirewallRuleExists()
+        private static INetFwPolicy2 fwPolicy = (INetFwPolicy2)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FwPolicy2"));
+
+        public static bool AddRule(Product product)
         {
             try
             {
-                INetFwPolicy2 fwPolicy = (INetFwPolicy2)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FwPolicy2"));
-                return fwPolicy.Rules.Cast<INetFwRule>()
-                    .Any(rule => !string.IsNullOrWhiteSpace(rule.Description) &&
-                                 rule.Description.Trim().EndsWith("limiting its online functionalities.", StringComparison.OrdinalIgnoreCase));
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-        public static bool AddFirewallBlockRule(Product product)
-        {
-            try
-            {
-                if (FirewallRuleExists())
-                {
-                    RemoveFirewallRule(product);
-                }
-
-                INetFwPolicy2 fwPolicy = (INetFwPolicy2)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FwPolicy2"));
                 Type ruleType = Type.GetTypeFromProgID("HNetCfg.FwRule");
 
-                var inboundRule = CreateFirewallRule(product, ruleType, NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_IN);
-                var outboundRule = CreateFirewallRule(product, ruleType, NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_OUT);
+                var inboundRule = CreateRule(product, ruleType, NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_IN);
+                var outboundRule = CreateRule(product, ruleType, NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_OUT);
 
                 fwPolicy.Rules.Add(inboundRule);
                 fwPolicy.Rules.Add(outboundRule);
@@ -237,11 +251,10 @@ namespace Connor
             }
         }
 
-        public static bool RemoveFirewallRule(Product product)
+        public static bool RemoveRule(Product product)
         {
             try
             {
-                INetFwPolicy2 fwPolicy = (INetFwPolicy2)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FwPolicy2"));
                 var rulesToRemove = fwPolicy.Rules.Cast<INetFwRule>()
                                     .Where(rule => rule.Name == product.Name)
                                     .Select(rule => rule.Name)
@@ -260,7 +273,7 @@ namespace Connor
             }
         }
 
-        private static INetFwRule CreateFirewallRule(Product product, Type ruleType, NET_FW_RULE_DIRECTION_ direction)
+        private static INetFwRule CreateRule(Product product, Type ruleType, NET_FW_RULE_DIRECTION_ direction)
         {
             INetFwRule rule = (INetFwRule)Activator.CreateInstance(ruleType);
             rule.Name = product.Name;
