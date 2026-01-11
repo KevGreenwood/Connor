@@ -1,63 +1,128 @@
-﻿<ui:FluentWindow x:Class="Connor.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Connor"
-        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        mc:Ignorable="d"
-        Title="Connor"
-    Width="800"
-    Height="450"
-    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
-    ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+﻿<ui:FluentWindow
+    x:Class="Connor.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="clr-namespace:Connor"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:anim="https://github.com/whistyun/AnimatedImage.Wpf"
+    mc:Ignorable="d"
+    Title="Connor"
+    Width="900"
+    Height="600"
     ExtendsContentIntoTitleBar="True"
-    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ResizeMode="CanResize"
-    WindowBackdropType="Mica">
-    <StackPanel>
-        <ui:TitleBar Title="Connor"/>
+    WindowBackdropType="Mica"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <ui:FluentWindow.Resources>
+        <Style TargetType="Image" x:Key="HeaderAnimationStyle">
+            <Setter Property="Grid.Row" Value="1"/>
+            <Setter Property="Grid.RowSpan" Value="1"/>
 
-        <StackPanel>
-            <ScrollViewer>
-                <ItemsControl Margin="16" ItemsSource="{Binding Products}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type local:Product}">
-                            <ui:CardControl Margin="4" Padding="20,10,20,10">
-                                <ui:CardControl.Icon>
-                                    <ui:ImageIcon Source="{Binding Icon}" />
-                                </ui:CardControl.Icon>
-                                <ui:CardControl.Header>
-                                    <StackPanel>
-                                        <ui:TextBlock
-                                            Margin="0"
-                                            FontTypography="BodyStrong"
-                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                            Text="{Binding Name}"
-                                            TextWrapping="WrapWithOverflow" />
-                                        <ui:TextBlock
-                                            Appearance="Secondary"
-                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                            Text="{Binding Version}"
-                                            TextWrapping="WrapWithOverflow" />
-                                    </StackPanel>
-                                </ui:CardControl.Header>
-                                <ui:ToggleSwitch
-                                    Checked="ToggleSwitch_Checked"
-                                    IsChecked="{Binding IsFirewallBlocked, Mode=TwoWay}"
-                                    Unchecked="ToggleSwitch_Unchecked" />
-                            </ui:CardControl>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+            <Style.Triggers>
+                <!-- When there'arent products -->
+                <DataTrigger Binding="{Binding Products.Count}" Value="0">
+                    <Setter Property="Grid.RowSpan" Value="2"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
 
+        <!-- Hide ScrollViewer -->
+        <Style TargetType="ScrollViewer" x:Key="ProductsScrollStyle">
+            <Setter Property="Visibility" Value="Visible"/>
+
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Products.Count}" Value="0">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </ui:FluentWindow.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="100"/>
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="Connor"/>
+
+        <Image
+    Style="{StaticResource HeaderAnimationStyle}"
+    x:Name="HeaderAnimation"
+    Grid.Row="1"
+    HorizontalAlignment="Center"
+    Width="500"
+    Margin="0,20,0,12"
+    anim:ImageBehavior.AnimatedSource="Assets/c01n.webp" />
+
+
+
+
+
+        <ScrollViewer
+            Style="{StaticResource ProductsScrollStyle}"
+            x:Name="ProductsScroll"
+            Grid.Row="2"
+            Margin="12"
+            VerticalScrollBarVisibility="Auto"
+            HorizontalScrollBarVisibility="Disabled">
+
+            <ItemsControl ItemsSource="{Binding Products}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:Product}">
+                        <ui:CardControl
+                            Margin="0,0,0,10"
+                            Padding="20,12">
+
+                            <ui:CardControl.Icon>
+                                <ui:ImageIcon Source="{Binding Icon}" />
+                            </ui:CardControl.Icon>
+
+                            <ui:CardControl.Header>
+                                <StackPanel>
+                                    <ui:TextBlock
+                                        FontTypography="BodyStrong"
+                                        Text="{Binding Name}"
+                                        TextWrapping="Wrap"/>
+
+                                    <ui:TextBlock
+                                        Appearance="Secondary"
+                                        Text="{Binding Version}"/>
+                                </StackPanel>
+                            </ui:CardControl.Header>
+
+                            <ui:ToggleSwitch
+                                IsChecked="{Binding IsFirewallBlocked, Mode=TwoWay}"
+                                Checked="ToggleSwitch_Checked"
+                                Unchecked="ToggleSwitch_Unchecked"/>
+                        </ui:CardControl>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Border
+            Grid.Row="3"
+            Background="{DynamicResource ApplicationBackgroundBrush}">
             <ui:Button
                 HorizontalAlignment="Center"
                 Appearance="Primary"
                 Click="Button_Click"
                 Content="Add Program"
                 Icon="{ui:SymbolIcon Add12}"/>
-        </StackPanel>
-    </StackPanel>
+        </Border>
+
+    </Grid>
 </ui:FluentWindow>
