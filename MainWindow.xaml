@@ -1,0 +1,63 @@
+﻿<ui:FluentWindow x:Class="Connor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Connor"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        mc:Ignorable="d"
+        Title="Connor"
+    Width="800"
+    Height="450"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ExtendsContentIntoTitleBar="True"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ResizeMode="CanResize"
+    WindowBackdropType="Mica">
+    <StackPanel>
+        <ui:TitleBar Title="Connor"/>
+
+        <StackPanel>
+            <ScrollViewer>
+                <ItemsControl Margin="16" ItemsSource="{Binding Products}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:Product}">
+                            <ui:CardControl Margin="4" Padding="20,10,20,10">
+                                <ui:CardControl.Icon>
+                                    <ui:ImageIcon Source="{Binding Icon}" />
+                                </ui:CardControl.Icon>
+                                <ui:CardControl.Header>
+                                    <StackPanel>
+                                        <ui:TextBlock
+                                            Margin="0"
+                                            FontTypography="BodyStrong"
+                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                            Text="{Binding Name}"
+                                            TextWrapping="WrapWithOverflow" />
+                                        <ui:TextBlock
+                                            Appearance="Secondary"
+                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                            Text="{Binding Version}"
+                                            TextWrapping="WrapWithOverflow" />
+                                    </StackPanel>
+                                </ui:CardControl.Header>
+                                <ui:ToggleSwitch
+                                    Checked="ToggleSwitch_Checked"
+                                    IsChecked="{Binding IsFirewallBlocked, Mode=TwoWay}"
+                                    Unchecked="ToggleSwitch_Unchecked" />
+                            </ui:CardControl>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <ui:Button
+                HorizontalAlignment="Center"
+                Appearance="Primary"
+                Click="Button_Click"
+                Content="Add Program"
+                Icon="{ui:SymbolIcon Add12}"/>
+        </StackPanel>
+    </StackPanel>
+</ui:FluentWindow>
