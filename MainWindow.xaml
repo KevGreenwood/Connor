@@ -13,29 +13,32 @@
     Height="600"
     ExtendsContentIntoTitleBar="True"
     ResizeMode="CanResize"
-    WindowBackdropType="Mica"
+    WindowBackdropType="Acrylic"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
-    ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}">
     <ui:FluentWindow.Resources>
         <Style TargetType="Image" x:Key="HeaderAnimationStyle">
-            <Setter Property="Grid.Row" Value="1"/>
-            <Setter Property="Grid.RowSpan" Value="1"/>
+            <Setter Property="Grid.Row" Value="1" />
+            <Setter Property="Grid.RowSpan" Value="1" />
+            <Setter Property="Width" Value="400" />
 
             <Style.Triggers>
                 <!-- When there'arent products -->
                 <DataTrigger Binding="{Binding Products.Count}" Value="0">
-                    <Setter Property="Grid.RowSpan" Value="2"/>
+                    <Setter Property="Grid.RowSpan" Value="2" />
+                    <Setter Property="Width" Value="Auto" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
 
         <!-- Hide ScrollViewer -->
         <Style TargetType="ScrollViewer" x:Key="ProductsScrollStyle">
-            <Setter Property="Visibility" Value="Visible"/>
+            <Setter Property="Visibility" Value="Visible" />
 
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Products.Count}" Value="0">
-                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Setter Property="Visibility" Value="Collapsed" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -43,25 +46,21 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="100"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="100" />
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="Connor"/>
+        <ui:TitleBar Grid.Row="0" Title="Connor" />
 
         <Image
-    Style="{StaticResource HeaderAnimationStyle}"
-    x:Name="HeaderAnimation"
-    Grid.Row="1"
-    HorizontalAlignment="Center"
-    Width="500"
-    Margin="0,20,0,12"
-    anim:ImageBehavior.AnimatedSource="Assets/c01n.webp" />
-
-
-
+            Style="{StaticResource HeaderAnimationStyle}"
+            x:Name="HeaderAnimation"
+            Grid.Row="1"
+            HorizontalAlignment="Center"
+            Margin="0,20,0,12"
+            anim:ImageBehavior.AnimatedSource="Assets/coin.webp" />
 
 
         <ScrollViewer
@@ -75,7 +74,7 @@
             <ItemsControl ItemsSource="{Binding Products}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel/>
+                        <StackPanel />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
 
@@ -94,25 +93,24 @@
                                     <ui:TextBlock
                                         FontTypography="BodyStrong"
                                         Text="{Binding Name}"
-                                        TextWrapping="Wrap"/>
+                                        TextWrapping="Wrap" />
 
                                     <ui:TextBlock
                                         Appearance="Secondary"
-                                        Text="{Binding Version}"/>
+                                        Text="{Binding Version}" />
                                 </StackPanel>
                             </ui:CardControl.Header>
 
                             <ui:ToggleSwitch
                                 IsChecked="{Binding IsFirewallBlocked, Mode=TwoWay}"
                                 Checked="ToggleSwitch_Checked"
-                                Unchecked="ToggleSwitch_Unchecked"/>
+                                Unchecked="ToggleSwitch_Unchecked" />
                         </ui:CardControl>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
 
-        <!-- Footer -->
         <Border
             Grid.Row="3"
             Background="{DynamicResource ApplicationBackgroundBrush}">
@@ -121,8 +119,7 @@
                 Appearance="Primary"
                 Click="Button_Click"
                 Content="Add Program"
-                Icon="{ui:SymbolIcon Add12}"/>
+                Icon="{ui:SymbolIcon Add12}" />
         </Border>
-
     </Grid>
 </ui:FluentWindow>
