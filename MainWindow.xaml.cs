@@ -24,7 +24,7 @@ namespace Connor
               WindowBackdropType.Auto,  // Background type
               true                                      // Whether to change accents automatically
             );
-            ProductHandler.LoadProducts();
+            ProductHandler.InitializeScan();
             InitializeComponent();
         }
 

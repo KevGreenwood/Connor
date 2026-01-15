@@ -15,39 +15,7 @@ namespace Connor
     public static class ProductHandler
     {
         public static ObservableCollection<Product> Products { get; } = new ObservableCollection<Product>();
-        private static HashSet<String> appsFound = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        private static IEnumerable<string> ScanApps()
-        {
-            IEnumerable<string> basePaths = new[]
-            {
-                Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES%\Adobe"),
-                Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES(x86)%\Adobe")
-            }
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-            
-            HashSet<string> targetApps = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "Photoshop.exe",
-                "Illustrator.exe",
-                "AfterFX.exe",
-                "Premiere.exe",
-                "InDesign.exe"
-            };
-
-            foreach (var root in basePaths)
-            {
-                if (!Directory.Exists(root)) continue;
-
-                foreach (var exe in Directory.EnumerateFiles(root, "*.exe", SearchOption.AllDirectories))
-                {
-                    if (!targetApps.Contains(Path.GetFileName(exe))) continue;
-
-                    if (appsFound.Add(exe))
-                        yield return exe;
-                }
-            }
-        }
+        private static readonly Dictionary<string, Product> productIndex = new Dictionary<string, Product>(StringComparer.OrdinalIgnoreCase);
 
         public static BitmapImage GetIcon(string executablePath)
         {
@@ -76,84 +44,109 @@ namespace Connor
             }
         }
 
-        public static async Task LoadProducts()
+        private static async Task ScanApps()
         {
-            Products.Clear();
+            IEnumerable<string> basePaths = new[]
+            {
+                Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES%\Adobe"),
+                Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES(x86)%\Adobe")
+            }
+            .Distinct(StringComparer.OrdinalIgnoreCase);
 
-            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> targetApps = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "Photoshop.exe",
+                "Illustrator.exe",
+                "AfterFX.exe",
+                "Premiere.exe",
+                "InDesign.exe"
+            };
 
+            foreach (var root in basePaths)
+            {
+                if (!Directory.Exists(root)) continue;
+
+                foreach (var exePath in Directory.EnumerateFiles(root, "*.exe", SearchOption.AllDirectories))
+                {
+                    if (!targetApps.Contains(Path.GetFileName(exePath)) || productIndex.ContainsKey(exePath)) continue;
+                    
+                    FileVersionInfo info;
+                    try
+                    {
+                        info = FileVersionInfo.GetVersionInfo(exePath);
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    productIndex[exePath] = new Product
+                    {
+                        Name = info.ProductName ??
+                               Path.GetFileNameWithoutExtension(exePath),
+                        Version = info.ProductVersion ?? "1.0.0",
+                        ExecutablePath = exePath,
+                        IsFirewallBlocked = false, // Default value; will be updated in ScanFirewall
+                        Icon = await Task.Run(() => GetIcon(exePath))
+                    };
+                }
+            }
+        }
+
+
+        private static async Task ScanFirewall()
+        {
             INetFwPolicy2 fwPolicy =
                 (INetFwPolicy2)Activator.CreateInstance(
                     Type.GetTypeFromProgID("HNetCfg.FwPolicy2"));
 
             foreach (INetFwRule rule in fwPolicy.Rules)
             {
-                if (rule.Action != NET_FW_ACTION_.NET_FW_ACTION_BLOCK)
+                if (rule.Action != NET_FW_ACTION_.NET_FW_ACTION_BLOCK || 
+                    string.IsNullOrWhiteSpace(rule.Description) || 
+                    string.IsNullOrWhiteSpace(rule.ApplicationName))
                     continue;
 
-                if (string.IsNullOrWhiteSpace(rule.Description))
-                    continue;
-
-                if (rule.Description.Trim().EndsWith(
-                        "limiting its online functionalities.",
-                        StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                // Should have an application path
-                if (string.IsNullOrWhiteSpace(rule.ApplicationName))
-                    continue;
-
-                string exePath = rule.ApplicationName.Trim('"');
-
-                // Avoid duplicates
-                if (!seenPaths.Add(exePath))
-                    continue;
-
-                FileVersionInfo info;
-                try
+                if (rule.Description.Trim().EndsWith("limiting its online functionalities.", StringComparison.OrdinalIgnoreCase))
                 {
-                    info = FileVersionInfo.GetVersionInfo(exePath);
+                    string exePath = rule.ApplicationName.Trim('"');
+
+                    if (productIndex.TryGetValue(exePath, out Product product))
+                    {
+                        product.IsFirewallBlocked = true;
+                        continue;
+                    }
+
+                    FileVersionInfo info;
+                    try
+                    {
+                        info = FileVersionInfo.GetVersionInfo(exePath);
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    productIndex[exePath] = new Product
+                    {
+                        Name = info.ProductName ?? Path.GetFileNameWithoutExtension(exePath),
+                        Version = info.ProductVersion ?? "1.0.0",
+                        ExecutablePath = exePath,
+                        IsFirewallBlocked = true,
+                        Icon = await Task.Run(() => GetIcon(exePath))
+                    };
                 }
-                catch
-                {
-                    continue; // exe not found or inaccessible
-                }
-
-                Products.Add(new Product
-                {
-                    Name = info.ProductName ??
-                           Path.GetFileNameWithoutExtension(exePath),
-                    Version = info.ProductVersion ?? "1.0.0",
-                    ExecutablePath = exePath,
-                    IsFirewallBlocked = true,
-                    Icon = await Task.Run(() => GetIcon(exePath))
-                });
-            }
-
-            foreach (string executable in ScanApps())
-            {
-                if (Products.Any(p =>
-                    p.ExecutablePath.Equals(executable, StringComparison.OrdinalIgnoreCase)))
-                    continue;
-
-                FileVersionInfo info = FileVersionInfo.GetVersionInfo(executable);
-
-
-                Products.Add(new Product
-                {
-                    Name = info.ProductName ??
-                           Path.GetFileNameWithoutExtension(executable),
-                    Version = info.ProductVersion ?? "1.0.0",
-                    ExecutablePath = executable,
-                    Icon = await Task.Run(() => GetIcon(executable)),
-                    IsFirewallBlocked = false
-                });
             }
         }
 
-        public static async Task LoadFromFirewall()
+        public static async Task InitializeScan()
         {
+            await ScanApps();
+            await ScanFirewall();
 
+            Products.Clear();
+            foreach (var product in productIndex.Values)
+                Products.Add(product);
         }
     }
 }
