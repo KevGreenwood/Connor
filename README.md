@@ -1,6 +1,7 @@
 # Connor
+https://github.com/user-attachments/assets/96022211-a832-4eb4-8111-d321e08857e8
 
-![Connor](/docs/c01n.webp)
+
 
 **Connor** was born from the remnants of my previous project, *PrometheusActivator*.
 
