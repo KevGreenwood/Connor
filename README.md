@@ -3,7 +3,7 @@ https://github.com/user-attachments/assets/96022211-a832-4eb4-8111-d321e08857e8
 
 
 
-**Connor** was born from the remnants of my previous project, *PrometheusActivator*.
+**Connor** was born from the remnants of my previous project, *PrometheusActivator/OpenFuryKMS*.
 
 It is a Windows application that allows you to manage and block **inbound and outbound Windows Firewall rules** for specific programs through a clean and modern interface built with **WPF UI**.
 
